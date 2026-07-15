@@ -240,6 +240,34 @@ error TS5101: Option 'baseUrl' is deprecated and will stop functioning in TypeSc
 ```
 With `"moduleResolution": "bundler"` (the current Vite template default), `paths` aliases (`@/*` → `./src/*`) don't need `baseUrl` at all — removed it, the alias kept working.
 
+### 6. ⚠️ Real Issue Hit — Railway Deploy: Requests Hung Then Failed With a Generic Error
+
+Everything worked locally (`npm run dev` proxying to the Railway backend directly — see the CORS section above), but after deploying the frontend itself to Railway, register/login took a long time and then failed with the generic "Something went wrong" fallback message.
+
+**Root cause — wrong `Host` header sent upstream.** The original `nginx.conf` had:
+```nginx
+proxy_set_header Host $host;
+```
+`$host` in nginx is the **incoming request's** Host header — i.e. the frontend's own domain (`medinfo-frontend-production.up.railway.app`). That got forwarded to the Gateway as-is. Railway's edge network routes every request to the correct internal service by Host header / TLS SNI — since the Gateway's edge received a request claiming to be for the *frontend's* domain, it had nowhere correct to route it, and the connection just sat there until nginx's default 60s `proxy_read_timeout` gave up. That matches the symptom exactly: a long hang, then a failure with no specific error message (nginx's own timeout response isn't JSON, so it doesn't carry a `{message: ...}` the frontend's error normalizer can surface — it falls through to the generic fallback).
+
+**Fix:**
+```nginx
+proxy_set_header Host $proxy_host;   # the Gateway's own host, not the frontend's
+proxy_ssl_server_name on;             # correct TLS SNI for the upstream HTTPS host
+proxy_ssl_name $proxy_host;
+```
+`$proxy_host` is nginx's built-in variable for "the host portion of the current `proxy_pass` target" — exactly what needed to be sent.
+
+**A second, related fix applied at the same time:** the original config used `proxy_pass ${GATEWAY_URL}/api/;` with the URL substituted directly into a literal string. For a literal (non-variable) proxy target, nginx resolves the hostname **once, at startup**, and caches that IP for the life of the worker process. Railway's public hostnames sit behind a load balancer whose backing IPs can rotate — a stale cached IP would reproduce the exact same "hangs, then fails" symptom even with the Host header fixed. Forcing dynamic re-resolution requires a `resolver` directive plus routing the proxy target through an nginx variable:
+```nginx
+resolver 1.1.1.1 8.8.8.8 valid=30s ipv6=off;
+# ...
+location /api/ {
+    set $upstream_gateway ${GATEWAY_URL};
+    proxy_pass $upstream_gateway/api/;
+```
+Also added explicit, short timeouts (`proxy_connect_timeout 10s`, `proxy_read_timeout 15s`) so a genuinely unreachable Gateway fails fast and visibly instead of leaving the user staring at a spinner for a full minute.
+
 ---
 
 ## 🧪 Verification
