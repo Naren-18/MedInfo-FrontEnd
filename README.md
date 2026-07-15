@@ -1,6 +1,6 @@
 # 🏥 MedInfo — Frontend
 
-The client for the [MedInfo microservices backend](../MedInfo-Backend-Microservices) — an emergency medical information platform. Register, build a medical profile, add emergency contacts, then get a QR code that lets anyone — no login required — see your critical medical information in an emergency.
+The client for the [MedInfo microservices backend](https://github.com/Naren-18/MedInfo-Backend-Microservices) — an emergency medical information platform. Register, build a medical profile, add emergency contacts, then get a QR code that lets anyone — no login required — see your critical medical information in an emergency.
 
 > 📐 Deep-dive documentation: **[Architecture.md](Architecture.md)** — design decisions, the CORS-avoidance strategy, real issues hit, and end-to-end verification results.
 
