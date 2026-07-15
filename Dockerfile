@@ -19,5 +19,8 @@ COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 
 ENV GATEWAY_URL=http://gateway-service:8080
+# Railway overrides this automatically with its own assigned port at deploy
+# time; this default only applies to plain `docker run` / Docker Compose.
+ENV PORT=80
 
 EXPOSE 80
