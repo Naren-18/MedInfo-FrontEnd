@@ -1,8 +1,10 @@
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
+import { AnimatePresence, motion } from "framer-motion"
 import { HeartPulse, LayoutDashboard, LogOut, Menu, QrCode, User, Users } from "lucide-react"
 import * as React from "react"
 
 import { useAuth } from "@/context/AuthContext"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -22,7 +24,15 @@ const NAV_LINKS = [
 export function Navbar() {
   const { isAuthenticated, user, logout } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [mobileOpen, setMobileOpen] = React.useState(false)
+
+  // Collapse the mobile menu automatically whenever the route changes (e.g.
+  // a link inside it was just followed) so it never lingers open over the
+  // next page.
+  React.useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
 
   function handleLogout() {
     logout()
@@ -44,14 +54,31 @@ export function Navbar() {
 
         {isAuthenticated && (
           <nav className="hidden items-center gap-1 md:flex">
-            {NAV_LINKS.map((link) => (
-              <Button key={link.to} variant="ghost" size="sm" asChild>
-                <Link to={link.to} className="flex items-center gap-1.5">
+            {NAV_LINKS.map((link) => {
+              const isActive = pathname === link.to
+              return (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "relative flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {isActive && (
+                    <motion.span
+                      layoutId="navbar-active-pill"
+                      className="absolute inset-0 rounded-md bg-primary shadow-sm"
+                      style={{ zIndex: -1 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                    />
+                  )}
                   <link.icon className="h-4 w-4" />
                   {link.label}
                 </Link>
-              </Button>
-            ))}
+              )
+            })}
           </nav>
         )}
 
@@ -81,8 +108,11 @@ export function Navbar() {
                 className="md:hidden"
                 onClick={() => setMobileOpen((v) => !v)}
                 aria-label="Toggle menu"
+                aria-expanded={mobileOpen}
               >
-                <Menu className="h-5 w-5" />
+                <motion.span animate={{ rotate: mobileOpen ? 90 : 0 }} transition={{ duration: 0.2 }}>
+                  <Menu className="h-5 w-5" />
+                </motion.span>
               </Button>
             </>
           ) : (
@@ -98,36 +128,49 @@ export function Navbar() {
         </div>
       </div>
 
-      {isAuthenticated && mobileOpen && (
-        <nav className="border-t border-border md:hidden">
-          <div className="container flex flex-col gap-1 py-2">
-            {NAV_LINKS.map((link) => (
+      <AnimatePresence>
+        {isAuthenticated && mobileOpen && (
+          <motion.nav
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="overflow-hidden border-t border-border md:hidden"
+          >
+            <div className="container flex flex-col gap-1 py-2">
+              {NAV_LINKS.map((link) => {
+                const isActive = pathname === link.to
+                return (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <link.icon className="h-4 w-4" />
+                    {link.label}
+                    {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
+                  </Link>
+                )
+              })}
               <Button
-                key={link.to}
                 variant="ghost"
                 size="sm"
-                asChild
-                className="justify-start"
-                onClick={() => setMobileOpen(false)}
+                className="justify-start text-destructive"
+                onClick={handleLogout}
               >
-                <Link to={link.to} className="flex items-center gap-2">
-                  <link.icon className="h-4 w-4" />
-                  {link.label}
-                </Link>
+                <LogOut className="mr-2 h-4 w-4" />
+                Log out
               </Button>
-            ))}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="justify-start text-destructive"
-              onClick={handleLogout}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Log out
-            </Button>
-          </div>
-        </nav>
-      )}
+            </div>
+          </motion.nav>
+        )}
+      </AnimatePresence>
     </header>
   )
 }
