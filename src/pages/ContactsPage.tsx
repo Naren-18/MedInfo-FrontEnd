@@ -159,20 +159,25 @@ export default function ContactsPage() {
                 animate={{ opacity: 1, y: 0, transition: { duration: 0.25, delay: 0.04 * index } }}
                 exit={{ opacity: 0, x: -12, transition: { duration: 0.15 } }}
               >
-                <Card className="transition-shadow hover:shadow-md">
+                <Card className="transition-all hover:-translate-y-0.5 hover:shadow-lg">
                   <CardContent className="flex items-center justify-between gap-4 p-4">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate font-medium">{contact.name}</p>
-                        <Badge variant="secondary">{contact.relationship}</Badge>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-sm font-semibold text-violet-600 dark:text-violet-400">
+                        {contact.name.charAt(0).toUpperCase()}
                       </div>
-                      <a
-                        href={`tel:${contact.phoneNumber}`}
-                        className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
-                      >
-                        <Phone className="h-3.5 w-3.5" />
-                        {contact.phoneNumber}
-                      </a>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate font-medium">{contact.name}</p>
+                          <Badge variant="secondary">{contact.relationship}</Badge>
+                        </div>
+                        <a
+                          href={`tel:${contact.phoneNumber}`}
+                          className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
+                        >
+                          <Phone className="h-3.5 w-3.5" />
+                          {contact.phoneNumber}
+                        </a>
+                      </div>
                     </div>
                     <div className="flex shrink-0 gap-1">
                       <Button
