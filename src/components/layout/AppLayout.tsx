@@ -1,27 +1,21 @@
-import { AnimatePresence, motion } from "framer-motion"
-import { Outlet, useLocation } from "react-router-dom"
+import { Suspense } from "react"
+import { Outlet } from "react-router-dom"
 
 import { Navbar } from "@/components/layout/Navbar"
+import { PageLoader } from "@/components/layout/PageLoader"
 
 export function AppLayout() {
-  const { pathname } = useLocation()
-
   return (
     <>
       <Navbar />
       <main className="flex flex-1 flex-col">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="flex flex-1 flex-col"
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+        {/* No wrapper enter animation here — each page already animates its
+            own content in on mount. Adding one at this level double-applies
+            the same fade/slide (page wrapper, then page content again),
+            which reads as the page "loading twice". */}
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
       </main>
       <footer className="no-print border-t border-border py-6 text-center text-xs text-muted-foreground">
         MedInfo — emergency medical information, available instantly, no login required.

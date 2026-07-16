@@ -42,16 +42,17 @@ export default function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         {/* Medical profile card */}
         <motion.div custom={0} initial="hidden" animate="visible" variants={cardVariants}>
-          <Card className="h-full transition-shadow hover:shadow-md">
+          <Card className="h-full overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-lg">
+            <div className="h-1 bg-gradient-to-r from-primary to-primary/40" />
             <CardHeader className="flex flex-row items-start justify-between gap-2">
               <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <HeartPulse className="h-4 w-4" />
                 </div>
                 <CardTitle className="text-base">Medical Profile</CardTitle>
               </div>
               {profileLoading ? null : (
-                <Badge variant={hasProfile ? "default" : "outline"}>{hasProfile ? "Complete" : "Missing"}</Badge>
+                <Badge variant={hasProfile ? "success" : "warning"}>{hasProfile ? "Complete" : "Missing"}</Badge>
               )}
             </CardHeader>
             <CardContent>
@@ -90,15 +91,18 @@ export default function DashboardPage() {
 
         {/* Contacts card */}
         <motion.div custom={1} initial="hidden" animate="visible" variants={cardVariants}>
-          <Card className="h-full transition-shadow hover:shadow-md">
+          <Card className="h-full overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-lg">
+            <div className="h-1 bg-gradient-to-r from-violet-500 to-violet-500/30" />
             <CardHeader className="flex flex-row items-start justify-between gap-2">
               <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
                   <Users className="h-4 w-4" />
                 </div>
                 <CardTitle className="text-base">Emergency Contacts</CardTitle>
               </div>
-              {!contactsLoading && <Badge variant={contactCount > 0 ? "default" : "outline"}>{contactCount}</Badge>}
+              {!contactsLoading && (
+                <Badge variant={contactCount > 0 ? "success" : "warning"}>{contactCount}</Badge>
+              )}
             </CardHeader>
             <CardContent>
               {contactsLoading ? (
@@ -132,10 +136,10 @@ export default function DashboardPage() {
 
       {/* Emergency card CTA */}
       <motion.div custom={2} initial="hidden" animate="visible" variants={cardVariants}>
-        <Card className="mt-6 border-primary/30 bg-primary/5">
+        <Card className="mt-6 overflow-hidden border-emergency/20 bg-gradient-to-br from-emergency/[0.07] via-transparent to-primary/[0.05]">
           <CardContent className="flex flex-col items-center gap-3 p-6 text-center sm:flex-row sm:justify-between sm:text-left">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emergency text-emergency-foreground shadow-sm">
                 <QrCode className="h-5 w-5" />
               </div>
               <div>
@@ -150,11 +154,13 @@ export default function DashboardPage() {
               </div>
             </div>
             {hasProfile ? (
-              <Button asChild>
+              <Button variant="emergency" asChild>
                 <Link to="/emergency-card">View emergency card</Link>
               </Button>
             ) : (
-              <Button disabled>View emergency card</Button>
+              <Button variant="emergency" disabled>
+                View emergency card
+              </Button>
             )}
           </CardContent>
         </Card>
