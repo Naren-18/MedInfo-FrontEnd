@@ -39,8 +39,10 @@ export interface MedicalProfile extends MedicalProfileInput {
   publicProfileId: string
 }
 
-/** Returned by GET /api/profile — no publicProfileId/userId in this shape per the backend DTO. */
-export type MedicalProfileResponse = MedicalProfileInput
+/** Returned by GET /api/profile — includes publicProfileId per MedicalProfileResponseDTO. */
+export interface MedicalProfileResponse extends MedicalProfileInput {
+  publicProfileId: string
+}
 
 export interface EmergencyContactInput {
   name: string

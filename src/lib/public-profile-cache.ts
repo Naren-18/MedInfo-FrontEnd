@@ -1,9 +1,8 @@
 /**
- * `GET /api/profile` intentionally omits `publicProfileId` (see
- * MedicalProfileResponseDTO) — only the POST/PUT responses ever include it.
- * To let the Emergency Card page still work after a page reload without a
- * backend change, the id is cached locally, scoped per user, the moment
- * it's returned by create/update.
+ * `publicProfileId` is served by the backend on GET/POST/PUT /api/profile
+ * and is the source of truth. This local, per-user cache is only a
+ * fast-path fallback (e.g. for a brief moment before the profile query
+ * resolves) — it must never be the sole source of the id.
  */
 
 const KEY_PREFIX = "medinfo_public_profile_id_"
