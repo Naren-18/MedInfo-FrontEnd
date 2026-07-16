@@ -6,7 +6,7 @@ import { AlertTriangle, Copy, Download, HeartPulse, Printer, QrCode } from "luci
 
 import { useAuth } from "@/context/AuthContext"
 import { useProfileQuery } from "@/hooks/useMedicalProfile"
-import { getCachedPublicProfileId } from "@/lib/public-profile-cache"
+import { cachePublicProfileId, getCachedPublicProfileId } from "@/lib/public-profile-cache"
 import { getErrorMessage } from "@/lib/errors"
 
 import { PageLoader } from "@/components/layout/PageLoader"
@@ -19,10 +19,16 @@ export default function EmergencyCardPage() {
   const { data: profile, isLoading, isError, error } = useProfileQuery()
   const qrRef = React.useRef<HTMLDivElement>(null)
 
-  const publicProfileId = user ? getCachedPublicProfileId(user.userId) : null
+  const publicProfileId = profile?.publicProfileId ?? (user ? getCachedPublicProfileId(user.userId) : null)
   const emergencyUrl = publicProfileId
     ? `${window.location.origin}/emergency/${publicProfileId}`
     : null
+
+  React.useEffect(() => {
+    if (user && profile?.publicProfileId) {
+      cachePublicProfileId(user.userId, profile.publicProfileId)
+    }
+  }, [user, profile?.publicProfileId])
 
   if (isLoading) {
     return <PageLoader label="Loading your emergency card…" />

@@ -5,7 +5,7 @@ import type { MedicalProfile, MedicalProfileInput, MedicalProfileResponse } from
 /** GET /api/profile — 404 if the user hasn't created one yet; that case is
  * represented as `null` here rather than a thrown error, since "no profile
  * yet" is a normal, expected state for the UI, not a failure. Returns
- * MedicalProfileResponseDTO, which deliberately omits publicProfileId. */
+ * MedicalProfileResponseDTO, including publicProfileId. */
 export async function getProfile(): Promise<MedicalProfileResponse | null> {
   try {
     const { data } = await http.get<MedicalProfileResponse>("/profile")
