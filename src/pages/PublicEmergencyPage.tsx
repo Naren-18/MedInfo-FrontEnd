@@ -15,6 +15,7 @@ import {
 
 import { getEmergencyProfile } from "@/api/emergency"
 import { getErrorMessage, getErrorStatus } from "@/lib/errors"
+import { isNoneValue } from "@/lib/none-value"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -86,9 +87,25 @@ export default function PublicEmergencyPage() {
 
             <Card>
               <CardContent className="space-y-4 p-6">
-                <InfoBlock icon={ShieldAlert} label="Allergies" value={profile.allergies} highlight />
-                <InfoBlock icon={AlertTriangle} label="Medical conditions" value={profile.medicalConditions} />
-                <InfoBlock icon={Pill} label="Current medications" value={profile.currentMedications} />
+                <InfoBlock
+                  icon={ShieldAlert}
+                  label="Allergies"
+                  value={profile.allergies}
+                  noneLabel="No known allergies"
+                  highlight
+                />
+                <InfoBlock
+                  icon={AlertTriangle}
+                  label="Medical conditions"
+                  value={profile.medicalConditions}
+                  noneLabel="No known conditions"
+                />
+                <InfoBlock
+                  icon={Pill}
+                  label="Current medications"
+                  value={profile.currentMedications}
+                  noneLabel="Not currently on medication"
+                />
               </CardContent>
             </Card>
 
@@ -135,19 +152,29 @@ function InfoBlock({
   icon: Icon,
   label,
   value,
+  noneLabel,
   highlight,
 }: {
   icon: ComponentType<{ className?: string }>
   label: string
   value: string
+  noneLabel: string
   highlight?: boolean
 }) {
+  const none = isNoneValue(value)
+  // A red, bolded "No known allergies" would read as an alert when it's
+  // actually the reassuring case — highlight styling only applies when
+  // there's something a responder actually needs to notice.
+  const emphasize = highlight && !none
+
   return (
     <div className="flex items-start gap-3">
-      <Icon className={highlight ? "mt-0.5 h-5 w-5 shrink-0 text-emergency" : "mt-0.5 h-5 w-5 shrink-0 text-primary"} />
+      <Icon className={emphasize ? "mt-0.5 h-5 w-5 shrink-0 text-emergency" : "mt-0.5 h-5 w-5 shrink-0 text-primary"} />
       <div>
         <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className={highlight ? "font-semibold" : ""}>{value}</p>
+        <p className={emphasize ? "font-semibold" : none ? "italic text-muted-foreground" : ""}>
+          {none ? noneLabel : value}
+        </p>
       </div>
     </div>
   )

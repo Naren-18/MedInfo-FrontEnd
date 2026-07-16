@@ -1,6 +1,7 @@
 import { Droplet, Pencil, Pill, Ruler, ShieldAlert, Trash2, Weight } from "lucide-react"
 
 import type { MedicalProfileResponse } from "@/api/types"
+import { isNoneValue } from "@/lib/none-value"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,11 +13,19 @@ interface ProfileSummaryCardProps {
   onDelete: () => void
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+// Shows the raw value when there's something specific to report; when it's
+// a "none" value (however it was originally typed — "None", "none", "n/a"
+// all still land here for anyone whose profile predates the toggle in
+// ProfileForm), shows a quiet, explicit negative statement instead of the
+// literal word sitting there looking unfinished.
+function Field({ label, value, noneLabel }: { label: string; value: string; noneLabel: string }) {
+  const none = isNoneValue(value)
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-0.5 text-sm">{value}</p>
+      <p className={`mt-0.5 text-sm ${none ? "italic text-muted-foreground" : ""}`}>
+        {none ? noneLabel : value}
+      </p>
     </div>
   )
 }
@@ -64,11 +73,19 @@ export function ProfileSummaryCard({ profile, onEdit, onDelete }: ProfileSummary
         <Separator />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Allergies" value={profile.allergies} />
-          <Field label="Medical conditions" value={profile.medicalConditions} />
+          <Field label="Allergies" value={profile.allergies} noneLabel="No known allergies" />
+          <Field
+            label="Medical conditions"
+            value={profile.medicalConditions}
+            noneLabel="No known conditions"
+          />
           <div className="flex items-start gap-2">
             <Pill className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <Field label="Current medications" value={profile.currentMedications} />
+            <Field
+              label="Current medications"
+              value={profile.currentMedications}
+              noneLabel="Not currently on medication"
+            />
           </div>
         </div>
 
