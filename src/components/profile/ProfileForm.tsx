@@ -1,4 +1,5 @@
-import { useForm } from "react-hook-form"
+import * as React from "react"
+import { useForm, type Control } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2 } from "lucide-react"
 
@@ -9,6 +10,7 @@ import {
   BLOOD_GROUPS,
   GENDERS,
 } from "@/lib/validation"
+import { NONE_VALUE, isNoneValue } from "@/lib/none-value"
 import type { MedicalProfileInput } from "@/api/types"
 
 import { Button } from "@/components/ui/button"
@@ -39,10 +41,65 @@ const EMPTY_DEFAULTS: MedicalProfileFormInput = {
   bloodGroup: "",
   height: 0,
   weight: 0,
-  allergies: "",
-  medicalConditions: "",
-  currentMedications: "",
+  allergies: NONE_VALUE,
+  medicalConditions: NONE_VALUE,
+  currentMedications: NONE_VALUE,
   organDonor: false,
+}
+
+// The backend requires these fields non-blank (@NotBlank in
+// CreateMedicalProfileDTO) — this stays frontend-only. Instead of asking
+// every user with nothing to report to type "None" by hand (inconsistent
+// casing — "none", "None", "n/a" — is useless data later), a toggle
+// submits one canonical value, and reveals free text only when there's
+// something specific to say.
+function NegatableTextField({
+  control,
+  name,
+  label,
+  noneLabel,
+  placeholder,
+  defaultIsNone,
+}: {
+  control: Control<MedicalProfileFormInput>
+  name: "allergies" | "medicalConditions" | "currentMedications"
+  label: string
+  noneLabel: string
+  placeholder: string
+  defaultIsNone: boolean
+}) {
+  const [isNone, setIsNone] = React.useState(defaultIsNone)
+
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <div className="flex items-center justify-between gap-3">
+            <FormLabel className="mb-0">{label}</FormLabel>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              {noneLabel}
+              <Switch
+                checked={isNone}
+                onCheckedChange={(checked) => {
+                  setIsNone(checked)
+                  field.onChange(checked ? NONE_VALUE : "")
+                }}
+                aria-label={`${noneLabel}, toggle off to enter details`}
+              />
+            </label>
+          </div>
+          {!isNone && (
+            <FormControl>
+              <Textarea placeholder={placeholder} autoFocus {...field} />
+            </FormControl>
+          )}
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  )
 }
 
 export function ProfileForm({ defaultValues, onSubmit, isSubmitting, submitLabel, onCancel }: ProfileFormProps) {
@@ -171,46 +228,31 @@ export function ProfileForm({ defaultValues, onSubmit, isSubmitting, submitLabel
           </div>
         </div>
 
-        <FormField
+        <NegatableTextField
           control={form.control}
           name="allergies"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Allergies</FormLabel>
-              <FormControl>
-                <Textarea placeholder='e.g. Penicillin, peanuts — or "None"' {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          label="Allergies"
+          noneLabel="No known allergies"
+          placeholder="e.g. Penicillin, peanuts"
+          defaultIsNone={isNoneValue(defaultValues?.allergies)}
         />
 
-        <FormField
+        <NegatableTextField
           control={form.control}
           name="medicalConditions"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Medical conditions</FormLabel>
-              <FormControl>
-                <Textarea placeholder='e.g. Hypertension, diabetes — or "None"' {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          label="Medical conditions"
+          noneLabel="No known conditions"
+          placeholder="e.g. Hypertension, diabetes"
+          defaultIsNone={isNoneValue(defaultValues?.medicalConditions)}
         />
 
-        <FormField
+        <NegatableTextField
           control={form.control}
           name="currentMedications"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Current medications</FormLabel>
-              <FormControl>
-                <Textarea placeholder='e.g. Metformin 500mg — or "None"' {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          label="Current medications"
+          noneLabel="Not currently on medication"
+          placeholder="e.g. Metformin 500mg"
+          defaultIsNone={isNoneValue(defaultValues?.currentMedications)}
         />
 
         <FormField
