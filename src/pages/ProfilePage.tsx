@@ -1,7 +1,8 @@
 import * as React from "react"
 import { useNavigate } from "react-router-dom"
+import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
-import { HeartPulse } from "lucide-react"
+import { HeartPulse, User } from "lucide-react"
 
 import {
   useCreateProfile,
@@ -15,6 +16,7 @@ import type { MedicalProfileInput } from "@/api/types"
 import { ProfileForm } from "@/components/profile/ProfileForm"
 import { ProfileSummaryCard } from "@/components/profile/ProfileSummaryCard"
 import { PageLoader } from "@/components/layout/PageLoader"
+import { PageHeader } from "@/components/layout/PageHeader"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -92,53 +94,85 @@ export default function ProfilePage() {
 
   return (
     <div className="container max-w-2xl py-10">
-      {!hasProfile && !isEditing && (
-        <Card>
-          <CardHeader className="items-center text-center">
-            <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <HeartPulse className="h-6 w-6" />
-            </div>
-            <CardTitle>Create your medical profile</CardTitle>
-            <CardDescription>
-              This is what first responders see when they scan your emergency QR code. It only takes a
-              minute.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ProfileForm
-              onSubmit={handleCreate}
-              isSubmitting={createProfile.isPending}
-              submitLabel="Create profile"
-            />
-          </CardContent>
-        </Card>
-      )}
+      <PageHeader
+        icon={User}
+        title="Medical Profile"
+        description="What first responders see when they scan your emergency QR code."
+      />
 
-      {hasProfile && !isEditing && profile && (
-        <ProfileSummaryCard
-          profile={profile}
-          onEdit={() => setIsEditing(true)}
-          onDelete={() => setConfirmDeleteOpen(true)}
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {!hasProfile && !isEditing && (
+          <motion.div
+            key="create"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Card>
+              <CardHeader className="items-center text-center">
+                <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <HeartPulse className="h-6 w-6" />
+                </div>
+                <CardTitle>Create your medical profile</CardTitle>
+                <CardDescription>
+                  This is what first responders see when they scan your emergency QR code. It only takes a
+                  minute.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ProfileForm
+                  onSubmit={handleCreate}
+                  isSubmitting={createProfile.isPending}
+                  submitLabel="Create profile"
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
-      {hasProfile && isEditing && profile && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Edit your medical profile</CardTitle>
-            <CardDescription>Changes take effect immediately on your public emergency card.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ProfileForm
-              defaultValues={profile}
-              onSubmit={handleUpdate}
-              isSubmitting={updateProfile.isPending}
-              submitLabel="Save changes"
-              onCancel={() => setIsEditing(false)}
+        {hasProfile && !isEditing && profile && (
+          <motion.div
+            key="summary"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ProfileSummaryCard
+              profile={profile}
+              onEdit={() => setIsEditing(true)}
+              onDelete={() => setConfirmDeleteOpen(true)}
             />
-          </CardContent>
-        </Card>
-      )}
+          </motion.div>
+        )}
+
+        {hasProfile && isEditing && profile && (
+          <motion.div
+            key="edit"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>Edit your medical profile</CardTitle>
+                <CardDescription>Changes take effect immediately on your public emergency card.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ProfileForm
+                  defaultValues={profile}
+                  onSubmit={handleUpdate}
+                  isSubmitting={updateProfile.isPending}
+                  submitLabel="Save changes"
+                  onCancel={() => setIsEditing(false)}
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
         <AlertDialogContent>

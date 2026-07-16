@@ -1,4 +1,5 @@
 import * as React from "react"
+import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
 import { Pencil, Phone, Plus, Trash2, Users } from "lucide-react"
 
@@ -13,6 +14,7 @@ import type { EmergencyContact, EmergencyContactInput } from "@/api/types"
 
 import { ContactForm } from "@/components/contacts/ContactForm"
 import { PageLoader } from "@/components/layout/PageLoader"
+import { PageHeader } from "@/components/layout/PageHeader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -107,79 +109,95 @@ export default function ContactsPage() {
 
   return (
     <div className="container max-w-2xl py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Emergency Contacts</h1>
-          <p className="text-sm text-muted-foreground">
-            Shown to first responders alongside your medical profile.
-          </p>
-        </div>
-        {hasContacts && (
-          <Button onClick={openCreateDialog}>
-            <Plus className="h-4 w-4" />
-            Add contact
-          </Button>
-        )}
-      </div>
-
-      {!hasContacts && (
-        <Card>
-          <CardHeader className="items-center text-center">
-            <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Users className="h-6 w-6" />
-            </div>
-            <CardTitle>No emergency contacts yet</CardTitle>
-            <CardDescription>
-              Add at least one person a responder can call on your behalf.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center">
+      <PageHeader
+        icon={Users}
+        title="Emergency Contacts"
+        description="Shown to first responders alongside your medical profile."
+        action={
+          hasContacts ? (
             <Button onClick={openCreateDialog}>
               <Plus className="h-4 w-4" />
-              Add your first contact
+              Add contact
             </Button>
-          </CardContent>
-        </Card>
+          ) : undefined
+        }
+      />
+
+      {!hasContacts && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+          <Card>
+            <CardHeader className="items-center text-center">
+              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Users className="h-6 w-6" />
+              </div>
+              <CardTitle>No emergency contacts yet</CardTitle>
+              <CardDescription>
+                Add at least one person a responder can call on your behalf.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              <Button onClick={openCreateDialog}>
+                <Plus className="h-4 w-4" />
+                Add your first contact
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
 
       {hasContacts && (
         <div className="space-y-3">
-          {contacts!.map((contact, index) => (
-            // Falls back to a composite key if `id` isn't present yet (see the
-            // note in api/contacts.ts) — avoids a duplicate/missing-key React
-            // warning without masking the underlying edit/delete limitation.
-            <Card key={contact.id ?? `${contact.phoneNumber}-${contact.name}-${index}`}>
-              <CardContent className="flex items-center justify-between gap-4 p-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate font-medium">{contact.name}</p>
-                    <Badge variant="secondary">{contact.relationship}</Badge>
-                  </div>
-                  <a
-                    href={`tel:${contact.phoneNumber}`}
-                    className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
-                  >
-                    <Phone className="h-3.5 w-3.5" />
-                    {contact.phoneNumber}
-                  </a>
-                </div>
-                <div className="flex shrink-0 gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => openEditDialog(contact)} aria-label="Edit contact">
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setDeletingContact(contact)}
-                    aria-label="Delete contact"
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <AnimatePresence initial={false}>
+            {contacts!.map((contact, index) => (
+              // Falls back to a composite key if `id` isn't present yet (see the
+              // note in api/contacts.ts) — avoids a duplicate/missing-key React
+              // warning without masking the underlying edit/delete limitation.
+              <motion.div
+                key={contact.id ?? `${contact.phoneNumber}-${contact.name}-${index}`}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0, transition: { duration: 0.25, delay: 0.04 * index } }}
+                exit={{ opacity: 0, x: -12, transition: { duration: 0.15 } }}
+              >
+                <Card className="transition-shadow hover:shadow-md">
+                  <CardContent className="flex items-center justify-between gap-4 p-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate font-medium">{contact.name}</p>
+                        <Badge variant="secondary">{contact.relationship}</Badge>
+                      </div>
+                      <a
+                        href={`tel:${contact.phoneNumber}`}
+                        className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                        {contact.phoneNumber}
+                      </a>
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditDialog(contact)}
+                        aria-label="Edit contact"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeletingContact(contact)}
+                        aria-label="Delete contact"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router-dom"
+import { motion } from "framer-motion"
 import { QRCodeSVG } from "qrcode.react"
 import { toast } from "sonner"
 import { AlertTriangle, Copy, Download, HeartPulse, Printer, QrCode } from "lucide-react"
@@ -10,6 +11,7 @@ import { cachePublicProfileId, getCachedPublicProfileId } from "@/lib/public-pro
 import { getErrorMessage } from "@/lib/errors"
 
 import { PageLoader } from "@/components/layout/PageLoader"
+import { PageHeader } from "@/components/layout/PageHeader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -130,30 +132,33 @@ export default function EmergencyCardPage() {
 
   return (
     <div className="container max-w-lg py-10">
-      <div className="mb-6 flex items-center gap-2">
-        <QrCode className="h-5 w-5 text-primary" />
-        <h1 className="text-2xl font-semibold">Your Emergency Card</h1>
-      </div>
-      <p className="mb-6 text-sm text-muted-foreground">
-        Print this, save it as a photo, or add it to your phone's lock screen. Anyone who scans it sees
-        your emergency medical information instantly — no login required.
-      </p>
+      <PageHeader
+        icon={QrCode}
+        title="Your Emergency Card"
+        description="Print this, save it as a photo, or add it to your phone's lock screen. Anyone who scans it sees your emergency medical information instantly — no login required."
+      />
 
-      <Card id="emergency-card-print" className="mx-auto max-w-sm">
-        <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
-          <div className="flex items-center gap-2 text-emergency">
-            <HeartPulse className="h-5 w-5" />
-            <span className="font-semibold">MedInfo Emergency Card</span>
-          </div>
-          <div ref={qrRef} className="rounded-lg border border-border p-4">
-            <QRCodeSVG value={emergencyUrl} size={220} level="M" marginSize={2} />
-          </div>
-          <p className="text-xs text-muted-foreground">Scan for emergency medical information</p>
-          <p className="break-all rounded bg-muted px-2 py-1 font-mono text-[10px] text-muted-foreground">
-            {emergencyUrl}
-          </p>
-        </CardContent>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+      >
+        <Card id="emergency-card-print" className="mx-auto max-w-sm">
+          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+            <div className="flex items-center gap-2 text-emergency">
+              <HeartPulse className="h-5 w-5" />
+              <span className="font-semibold">MedInfo Emergency Card</span>
+            </div>
+            <div ref={qrRef} className="rounded-lg border border-border p-4">
+              <QRCodeSVG value={emergencyUrl} size={220} level="M" marginSize={2} />
+            </div>
+            <p className="text-xs text-muted-foreground">Scan for emergency medical information</p>
+            <p className="break-all rounded bg-muted px-2 py-1 font-mono text-[10px] text-muted-foreground">
+              {emergencyUrl}
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       <div className="no-print mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <Button variant="outline" onClick={handlePrint}>
