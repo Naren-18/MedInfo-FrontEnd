@@ -15,6 +15,7 @@ The client for the [MedInfo microservices backend](https://github.com/Naren-18/M
 - react-hook-form + zod (validation mirrors the backend DTOs exactly)
 - axios
 - qrcode.react
+- vite-plugin-pwa (installable "Add to Home Screen" support)
 
 ---
 
@@ -66,6 +67,14 @@ docker run -p 8081:80 -e GATEWAY_URL=https://gateway-service-production-2453.up.
 ```
 
 The image serves the built app via nginx, which reverse-proxies `/api/*` to `GATEWAY_URL` the same way the Vite dev proxy does — same-origin from the browser's perspective, so the backend still never needs CORS. `GATEWAY_URL` is read at **container start** (not baked into the image), so switching backends doesn't require a rebuild. Defaults to `http://gateway-service:8080`, matching the service name Docker Compose would assign if this container joins the backend's `infrastructure/docker-compose.yml` network.
+
+---
+
+## 📲 Install as an App
+
+MedInfo is installable — the address bar shows an install icon on desktop Chrome, and "Add to Home Screen" launches a standalone app window on mobile, not just a bookmark. This only works against a **production build** (`npm run build` + serving `dist/`, or the Docker image) — the service worker is intentionally disabled under `npm run dev`.
+
+Only the static app shell is cached for offline use — every `/api/*` request is explicitly `NetworkOnly`, so medical data is always fetched live, never served stale from a cache. Full detail, including how to verify the install prompt yourself, in [Architecture.md](Architecture.md).
 
 ---
 
