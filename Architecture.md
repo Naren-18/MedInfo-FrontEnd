@@ -26,6 +26,7 @@ This document is the deep dive — what was built, why each decision was made, a
 | react-hook-form + zod | Validation schemas mirror the backend's `@NotBlank`/`@Min`/`@Max`/`@Pattern` annotations exactly, so client errors and server 400s never disagree. |
 | axios | HTTP client with request/response interceptors for auth headers and centralized error handling. |
 | qrcode.react | Client-side QR generation for the Emergency Card. |
+| vite-plugin-pwa | Generates the web app manifest + Workbox service worker for "Add to Home Screen" installability — see 📲 below. |
 
 ---
 
@@ -323,6 +324,63 @@ Falls back to `http://localhost:8080` if the file or variable is absent. Verifie
 
 ---
 
+## 📲 Installable as an App (PWA)
+
+MedInfo is installable — "Add to Home Screen" on mobile, an install icon in the address bar on desktop Chrome — launching in its own standalone window instead of a browser tab. Built with `vite-plugin-pwa`, which generates the web app manifest and a Workbox-based service worker at build time, rather than hand-writing either.
+
+### Why a Plugin, Not Hand-Rolled
+
+A working install prompt needs three things simultaneously: a valid web app manifest (`name`, icons at 192px+512px, `display: standalone`, `start_url`), a **registered service worker with an active fetch handler**, and the site served over HTTPS (or `localhost`, which counts as a secure context for this purpose). Getting all three right by hand is easy to get subtly wrong — `vite-plugin-pwa` generates all of it from one config block in `vite.config.ts` and re-generates it on every build, so the manifest and service worker can never drift out of sync with what actually shipped.
+
+### The One Rule That Mattered Most: Never Cache `/api/*`
+
+```ts
+workbox: {
+  globPatterns: ['**/*.{js,css,html,svg,png,ico}'],   // app shell only
+  runtimeCaching: [
+    {
+      urlPattern: /^\/api\//,
+      handler: 'NetworkOnly',   // explicitly never served from cache
+    },
+  ],
+},
+```
+
+A service worker's whole job is serving things without the network — which is exactly the wrong default for this app. A first responder reading a **stale, cached** emergency profile (old allergies, an outdated medication list) is a correctness failure this product cannot tolerate, unlike a typical PWA where a slightly-stale cached page is a minor inconvenience. `/api/*` is explicitly `NetworkOnly`, so only the static app shell (JS/CSS/HTML/icons) is ever precached — every medical data request always hits the network, same as if there were no service worker at all.
+
+### Icons
+
+Generated from a single hand-authored source SVG (the same heart-pulse mark as the favicon, on a solid brand-color rounded square) rasterized to every required size with `sharp`:
+
+| File | Size | Purpose |
+|---|---|---|
+| `pwa-64x64.png` | 64×64 | Manifest |
+| `pwa-192x192.png` | 192×192 | Manifest (Chrome's minimum for installability) |
+| `pwa-512x512.png` | 512×512 | Manifest, splash screen |
+| `maskable-icon-512x512.png` | 512×512 | Manifest, `purpose: "maskable"` — extra padding so Android's adaptive-icon masking (circle, squircle, etc.) never clips the heart-pulse mark |
+| `apple-touch-icon.png` | 180×180 | iOS home-screen icon (not part of the manifest spec at all — iOS ignores it) |
+
+### iOS Needs Different Meta Tags Entirely
+
+Safari doesn't support `beforeinstallprompt` or manifest-driven install prompts the way Chrome/Android does — "Add to Home Screen" only becomes a real, standalone-launching app if these are present in `index.html`, independent of the manifest:
+```html
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="MedInfo" />
+```
+Without `apple-mobile-web-app-capable`, iOS still lets you "Add to Home Screen," but it just opens Safari with URL bar and all — a bookmark, not an app.
+
+### ⚠️ Verification Limits, Stated Honestly
+
+The manifest was verified valid (served correctly, all required fields present, parses as JSON) and the service worker was confirmed reaching an `active` registration state, via a real headless-browser check against a production build (`vite preview`). What could **not** be verified from this environment: the actual `beforeinstallprompt` browser event, and Lighthouse's PWA installability audit (the `pwa` category has been removed from recent Lighthouse versions entirely — Google moved that check into Chrome DevTools' Application panel instead). Neither is a gap in the implementation — `beforeinstallprompt` is deliberately unreliable in headless/automated Chrome by design, not something any config can force. **To confirm the live install prompt yourself:** open the deployed site in real Chrome (desktop or Android) and look for the install icon in the address bar, or on iOS Safari use Share → Add to Home Screen. Chrome DevTools → Application → Manifest also lists any installability errors directly if something's actually wrong.
+
+### Design Principles Applied
+
+Precache the shell, never the data · Network-first (in this case, network-*only*) for anything where staleness is a safety issue, not a UX inconvenience · Platform-specific install paths (Chrome/Android via manifest, iOS via meta tags) treated as genuinely different mechanisms, not one abstraction papering over both
+
+---
+
 ## ✅ Progress
 
 - [x] Landing, Register, Login pages with validation matching backend rules exactly
@@ -338,10 +396,12 @@ Falls back to `http://localhost:8080` if the file or variable is absent. Verifie
 - [x] Dockerfile + nginx reverse proxy for production, no backend CORS required
 - [x] `.env.local` + `loadEnv()` for switching the dev proxy target (local ↔ Railway) without code changes
 - [x] Verified end-to-end against the live backend, not just a build check
+- [x] Installable PWA — manifest + service worker via `vite-plugin-pwa`, app-shell-only precaching, `/api/*` explicitly `NetworkOnly`, iOS meta tags, maskable + standard icons generated from one source SVG
 
 ### 🚧 Next
 
 - [ ] Backend: add `id` to `EContactsDTO` — unblocks contact edit/delete with zero frontend changes
 - [ ] Automated tests (the Playwright script used for verification was ad hoc, not committed as a test suite)
 - [ ] Typed API responses for the plain-string mutation endpoints (`POST/PUT/DELETE /api/contacts*`, `DELETE /api/profile`) currently typed as `Promise<void>`
+- [ ] Confirm the live install prompt in a real (non-headless) browser — see the PWA section's verification-limits note
 - [ ] Production CORS fallback path (rewrite rules) if the frontend is ever deployed to a static host without a server-side proxy (e.g. plain Vercel/Netlify without rewrites)
