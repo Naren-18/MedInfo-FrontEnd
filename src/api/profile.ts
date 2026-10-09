@@ -1,6 +1,11 @@
 import { AxiosError } from "axios"
 import { http } from "@/api/client"
-import type { MedicalProfile, MedicalProfileInput, MedicalProfileResponse } from "@/api/types"
+import type {
+  MedicalProfile,
+  MedicalProfileInput,
+  MedicalProfileResponse,
+  MedicalReportUpload,
+} from "@/api/types"
 
 /** GET /api/profile — 404 if the user hasn't created one yet; that case is
  * represented as `null` here rather than a thrown error, since "no profile
@@ -36,4 +41,28 @@ export async function updateProfile(payload: MedicalProfileInput): Promise<Medic
 /** DELETE /api/profile — returns a plain confirmation string. */
 export async function deleteProfile(): Promise<void> {
   await http.delete<string>("/profile")
+}
+
+/** POST /api/profile/reports — multipart upload of one PDF in the "file"
+ * field. 202 means accepted only; the AI summary on GET /api/profile
+ * updates later, in the background. The JSON default Content-Type on `http`
+ * must be overridden here: with it, axios would serialize the FormData to
+ * JSON. With "multipart/form-data", axios drops the header in the browser
+ * and lets it set its own, including the boundary. */
+export async function uploadReport(
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<MedicalReportUpload> {
+  const form = new FormData()
+  form.append("file", file)
+
+  const { data } = await http.post<MedicalReportUpload>("/profile/reports", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (event) => {
+      if (onProgress && event.total) {
+        onProgress(Math.round((event.loaded / event.total) * 100))
+      }
+    },
+  })
+  return data
 }

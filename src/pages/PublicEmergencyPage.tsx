@@ -3,19 +3,28 @@ import { useQuery } from "@tanstack/react-query"
 import { useParams } from "react-router-dom"
 import {
   AlertTriangle,
+  ChevronDown,
   Droplet,
   HeartPulse,
+  History,
   Phone,
   Pill,
   SearchX,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
   WifiOff,
 } from "lucide-react"
 
 import { getEmergencyProfile } from "@/api/emergency"
+import type { TimelineEvent } from "@/api/types"
+import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { getErrorMessage, getErrorStatus } from "@/lib/errors"
 import { isNoneValue } from "@/lib/none-value"
+import { formatServerDateTime } from "@/lib/server-time"
+import { AiSummaryText } from "@/components/profile/AiSummaryText"
+import { MedicalTimeline, TimelineDisclaimer } from "@/components/profile/MedicalTimeline"
+import { SnakeTimeline } from "@/components/profile/SnakeTimeline"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -34,7 +43,7 @@ export default function PublicEmergencyPage() {
   return (
     <div className="flex min-h-svh flex-col bg-emergency/5">
       <header className="border-b border-emergency/20 bg-emergency text-emergency-foreground">
-        <div className="container flex items-center gap-2 py-4">
+        <div className="container flex max-w-6xl items-center gap-2 py-4">
           <HeartPulse className="h-6 w-6" />
           <div>
             <p className="font-semibold leading-none">MedInfo Emergency Profile</p>
@@ -43,71 +52,112 @@ export default function PublicEmergencyPage() {
         </div>
       </header>
 
-      <main className="container flex flex-1 flex-col items-center py-8">
+      <main className="container flex max-w-6xl flex-1 flex-col items-center py-8">
         {isLoading && (
-          <div className="w-full max-w-md space-y-4">
-            <Skeleton className="h-10 w-2/3" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
+          <div className="w-full space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Skeleton className="h-44 w-full" />
+              <Skeleton className="h-44 w-full" />
+            </div>
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-14 w-full" />
           </div>
         )}
 
         {isError && <EmergencyErrorState error={error} />}
 
         {!isLoading && !isError && profile && (
-          <div className="w-full max-w-md space-y-4">
-            <Card className="border-emergency/30">
-              <CardContent className="p-6 text-center">
-                <p className="text-sm text-muted-foreground">Patient</p>
-                <h1 className="text-2xl font-bold">{profile.fullName}</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {profile.age} years old · {profile.gender}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-emergency bg-emergency text-emergency-foreground">
-              <CardContent className="flex items-center justify-between p-6">
-                <div className="flex items-center gap-3">
-                  <Droplet className="h-8 w-8" />
+          <div className="w-full space-y-4">
+            {/* Who, blood group, then what a responder must know — side by side from tablet up. */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card className="border-emergency/30">
+                <CardContent className="flex h-full flex-col gap-4 p-6">
                   <div>
-                    <p className="text-xs uppercase tracking-wide opacity-90">Blood Group</p>
-                    <p className="text-3xl font-extrabold leading-none">{profile.bloodGroup}</p>
+                    <p className="text-sm text-muted-foreground">Patient</p>
+                    <h1 className="text-2xl font-bold">{profile.fullName}</h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {profile.age} years old · {profile.gender}
+                    </p>
                   </div>
-                </div>
-                {profile.organDonor && (
-                  <div className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    Organ donor
+                  <div className="mt-auto flex items-center justify-between rounded-lg bg-emergency p-4 text-emergency-foreground">
+                    <div className="flex items-center gap-3">
+                      <Droplet className="h-8 w-8" />
+                      <div>
+                        <p className="text-xs uppercase tracking-wide opacity-90">Blood Group</p>
+                        <p className="text-3xl font-extrabold leading-none">{profile.bloodGroup}</p>
+                      </div>
+                    </div>
+                    {profile.organDonor && (
+                      <div className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        Organ donor
+                      </div>
+                    )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="space-y-4 p-6">
-                <InfoBlock
-                  icon={ShieldAlert}
-                  label="Allergies"
-                  value={profile.allergies}
-                  noneLabel="No known allergies"
-                  highlight
-                />
-                <InfoBlock
-                  icon={AlertTriangle}
-                  label="Medical conditions"
-                  value={profile.medicalConditions}
-                  noneLabel="No known conditions"
-                />
-                <InfoBlock
-                  icon={Pill}
-                  label="Current medications"
-                  value={profile.currentMedications}
-                  noneLabel="Not currently on medication"
-                />
-              </CardContent>
-            </Card>
+              <Card>
+                <CardContent className="flex h-full flex-col justify-center gap-4 p-6">
+                  <InfoBlock
+                    icon={ShieldAlert}
+                    label="Allergies"
+                    value={profile.allergies}
+                    noneLabel="No known allergies"
+                    highlight
+                  />
+                  <InfoBlock
+                    icon={AlertTriangle}
+                    label="Medical conditions"
+                    value={profile.medicalConditions}
+                    noneLabel="No known conditions"
+                  />
+                  <InfoBlock
+                    icon={Pill}
+                    label="Current medications"
+                    value={profile.currentMedications}
+                    noneLabel="Not currently on medication"
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            {profile.timeline && profile.timeline.length > 0 && (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="mb-5 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                    <History className="h-4 w-4 text-primary" />
+                    Medical Timeline
+                  </p>
+                  <ResponsiveTimeline events={profile.timeline} />
+                </CardContent>
+              </Card>
+            )}
+
+            {profile.aiSummary && (
+              <Card>
+                {/* Closed by default so the critical details above stay in view. */}
+                <details className="group">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-6 [&::-webkit-details-marker]:hidden">
+                    <span className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      AI Medical Summary
+                    </span>
+                    <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {formatServerDateTime(profile.summaryGeneratedAt) && (
+                        <span className="hidden sm:inline">
+                          Updated {formatServerDateTime(profile.summaryGeneratedAt)}
+                        </span>
+                      )}
+                      <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                    </span>
+                  </summary>
+                  <CardContent className="p-6 pt-0">
+                    <AiSummaryText summary={profile.aiSummary} generatedAt={profile.summaryGeneratedAt} />
+                  </CardContent>
+                </details>
+              </Card>
+            )}
 
             <Card>
               <CardContent className="p-6">
@@ -115,7 +165,7 @@ export default function PublicEmergencyPage() {
                 {profile.emergencyContacts.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No emergency contacts on file.</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="grid gap-2 md:grid-cols-2">
                     {profile.emergencyContacts.map((contact) => (
                       <a
                         key={contact.id}
@@ -144,6 +194,23 @@ export default function PublicEmergencyPage() {
           </div>
         )}
       </main>
+    </div>
+  )
+}
+
+// Phones: vertical list. Tablets: snake with 2 per row; desktops: 4 per row.
+function ResponsiveTimeline({ events }: { events: TimelineEvent[] }) {
+  const isTablet = useMediaQuery("(min-width: 768px)")
+  const isDesktop = useMediaQuery("(min-width: 1024px)")
+
+  if (!isTablet) {
+    return <MedicalTimeline events={events} />
+  }
+
+  return (
+    <div className="space-y-6">
+      <SnakeTimeline events={events} columns={isDesktop ? 4 : 2} />
+      <TimelineDisclaimer />
     </div>
   )
 }

@@ -2,7 +2,7 @@ import * as React from "react"
 import { useNavigate } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import { toast } from "sonner"
-import { HeartPulse, User } from "lucide-react"
+import { HeartPulse, History, User } from "lucide-react"
 
 import {
   useCreateProfile,
@@ -15,6 +15,8 @@ import type { MedicalProfileInput } from "@/api/types"
 
 import { ProfileForm } from "@/components/profile/ProfileForm"
 import { ProfileSummaryCard } from "@/components/profile/ProfileSummaryCard"
+import { AiSummaryCard } from "@/components/profile/AiSummaryCard"
+import { MedicalTimeline } from "@/components/profile/MedicalTimeline"
 import { PageLoader } from "@/components/layout/PageLoader"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -173,6 +175,35 @@ export default function ProfilePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Outside the AnimatePresence swap so it stays mounted while editing —
+          an in-flight "Analyzing your report…" poll keeps running. */}
+      {hasProfile && (
+        <div className="mt-6">
+          <AiSummaryCard />
+        </div>
+      )}
+
+      {profile && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-primary" />
+              Medical Timeline
+            </CardTitle>
+            <CardDescription>Dated events from your uploaded reports, oldest first.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {profile.timeline?.length ? (
+              <MedicalTimeline events={profile.timeline} />
+            ) : (
+              <p className="text-sm italic text-muted-foreground">
+                No timeline events yet. Upload a medical report to build your timeline.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
         <AlertDialogContent>
