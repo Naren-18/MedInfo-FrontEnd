@@ -8,6 +8,8 @@ import { PageLoader } from "@/components/layout/PageLoader"
 const LandingPage = lazy(() => import("@/pages/LandingPage"))
 const RegisterPage = lazy(() => import("@/pages/RegisterPage"))
 const LoginPage = lazy(() => import("@/pages/LoginPage"))
+const CheckEmailPage = lazy(() => import("@/pages/CheckEmailPage"))
+const VerifyEmailPage = lazy(() => import("@/pages/VerifyEmailPage"))
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"))
 const ProfilePage = lazy(() => import("@/pages/ProfilePage"))
 const ContactsPage = lazy(() => import("@/pages/ContactsPage"))
@@ -26,6 +28,11 @@ function App() {
 
         <Route element={<AppLayout />}>
           <Route path="/" element={<LandingPage />} />
+
+          {/* Email verification: reachable whether or not someone is logged
+              in on this browser, since the link can be opened anywhere. */}
+          <Route path="/check-email" element={<CheckEmailPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
 
           <Route element={<PublicOnlyRoute />}>
             <Route path="/register" element={<RegisterPage />} />

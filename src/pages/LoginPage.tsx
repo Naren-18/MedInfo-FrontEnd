@@ -3,12 +3,14 @@ import { Link, useLocation, useNavigate } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { HeartPulse, Loader2 } from "lucide-react"
+import { HeartPulse, Loader2, MailWarning } from "lucide-react"
 
 import { useAuth } from "@/context/AuthContext"
 import { loginSchema, type LoginFormValues } from "@/lib/validation"
 import { getErrorMessage, getErrorStatus } from "@/lib/errors"
 
+import { ResendVerificationButton } from "@/components/auth/ResendVerificationButton"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,6 +33,8 @@ export default function LoginPage() {
   const location = useLocation()
   const { login } = useAuth()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  // Set when the password was right but the email isn't verified yet (403).
+  const [unverifiedEmail, setUnverifiedEmail] = React.useState<string | null>(null)
 
   const state = (location.state as LocationState | null) ?? null
 
@@ -41,14 +45,18 @@ export default function LoginPage() {
 
   async function onSubmit(values: LoginFormValues) {
     setIsSubmitting(true)
+    setUnverifiedEmail(null)
     try {
       await login(values)
       toast.success("Welcome back.")
       const redirectTo = state?.from?.pathname ?? "/dashboard"
       navigate(redirectTo, { replace: true })
     } catch (err) {
-      if (getErrorStatus(err) === 401) {
+      const status = getErrorStatus(err)
+      if (status === 401) {
         form.setError("password", { message: getErrorMessage(err, "Invalid email or password.") })
+      } else if (status === 403) {
+        setUnverifiedEmail(values.email)
       } else {
         toast.error(getErrorMessage(err))
       }
@@ -68,6 +76,19 @@ export default function LoginPage() {
           <CardDescription>Log in to manage your medical profile and emergency contacts.</CardDescription>
         </CardHeader>
         <CardContent>
+          {unverifiedEmail && (
+            <Alert className="mb-4">
+              <MailWarning className="h-4 w-4" />
+              <AlertTitle>Please verify your email</AlertTitle>
+              <AlertDescription className="space-y-3">
+                <p>
+                  Open the link we sent to <span className="font-medium">{unverifiedEmail}</span> to activate
+                  your account, then log in again.
+                </p>
+                <ResendVerificationButton email={unverifiedEmail} />
+              </AlertDescription>
+            </Alert>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
               <FormField

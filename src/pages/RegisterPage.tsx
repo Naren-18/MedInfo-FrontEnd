@@ -35,8 +35,8 @@ export default function RegisterPage() {
     setIsSubmitting(true)
     try {
       await registerUser(values)
-      toast.success("Account created — please log in to continue.")
-      navigate("/login", { state: { prefillEmail: values.email } })
+      toast.success("Account created. Check your email to verify it.")
+      navigate("/check-email", { state: { email: values.email } })
     } catch (err) {
       if (getErrorStatus(err) === 409) {
         form.setError("email", { message: "An account with this email already exists." })
