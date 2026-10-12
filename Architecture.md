@@ -2,7 +2,9 @@
 
 The client for the [MedInfo microservices backend](../MedInfo-Backend-Microservices) — a single-page app covering the full product: register, build a medical profile, manage emergency contacts, generate a QR code, and the public no-login page a first responder actually scans.
 
-This document is the deep dive — what was built, why each decision was made, and the real issues hit while building and verifying it against the live backend. For the short version, see [Readme.md](Readme.md).
+This document is the deep dive — what was built, why each decision was made, and the real issues hit while building and verifying it against the live backend. For the short version, see [README.md](README.md).
+
+**Live:** https://www.medinfo.org.in (Vercel) · API: https://api.medinfo.org.in (Caddy → Gateway on a VPS)
 
 ---
 
@@ -19,9 +21,9 @@ This document is the deep dive — what was built, why each decision was made, a
 
 | Choice | Why |
 |---|---|
-| React 18 + TypeScript + Vite | Pure SPA calling a REST API — no SSR/SEO need, so Next.js would only add complexity. Vite gives a fast dev loop and a static build any host can serve. |
+| React 19 + TypeScript + Vite | Pure SPA calling a REST API — no SSR/SEO need, so Next.js would only add complexity. Vite gives a fast dev loop and a static build any host can serve. |
 | Tailwind CSS + shadcn/ui | Accessible Radix primitives (dialog, form, dropdown, toast), fully restyled — a distinct medical/emergency identity instead of a generic component-library look. |
-| React Router v6 | Client-side routing, public vs protected route trees. |
+| React Router v7 | Client-side routing, public vs protected route trees. |
 | TanStack Query | Server state for profile/contacts — caching, invalidation on mutation, loading/error states, mirrors the backend's own cache-then-invalidate philosophy. |
 | react-hook-form + zod | Validation schemas mirror the backend's `@NotBlank`/`@Min`/`@Max`/`@Pattern` annotations exactly, so client errors and server 400s never disagree. |
 | axios | HTTP client with request/response interceptors for auth headers and centralized error handling. |
@@ -37,19 +39,17 @@ This document is the deep dive — what was built, why each decision was made, a
                              │
                     same-origin requests only
                              │
-        ┌────────────────────┴────────────────────┐
-        ▼ dev (npm run dev)             ▼ prod (Docker)
-   Vite Dev Server (:5173)         nginx (:80)
-   server.proxy /api/* ──┐         location /api/ ──┐
-                         │         proxy_pass         │
-                         └──────────┬──────────────────┘
-                                    ▼
-                          API Gateway (:8080, or Railway)
+        ┌────────────────────┴─────────────────────────┐
+        ▼ dev (npm run dev)                  ▼ production (Vercel)
+   Vite Dev Server (:5173)              www.medinfo.org.in
+   server.proxy /api/* ──┐              vercel.json rewrite /api/* ──┐
+                         ▼                                            ▼
+              localhost:8080 Gateway        api.medinfo.org.in → Caddy → 127.0.0.1:8080 Gateway (VPS)
                                     │
                      Eureka → { Auth, Medical, Audit } Services
 ```
 
-The frontend never calls the Gateway directly from the browser. In dev, Vite's `server.proxy` forwards `/api/*` to the Gateway **inside Vite's Node process**. In a Docker build, nginx does the equivalent as a reverse proxy. Either way, the browser only ever sees `fetch('/api/...')` — same-origin, every time. That's the entire CORS strategy: there isn't a CORS problem to solve, because there's never a cross-origin request in the first place.
+The frontend never calls the Gateway directly from the browser. In dev, Vite's `server.proxy` forwards `/api/*` to the Gateway **inside Vite's Node process**. In production, Vercel's rewrite proxies `/api/*` to the API domain **server-side**. Either way, the browser only ever sees `fetch('/api/...')` — same-origin, every time. (An earlier Docker + nginx setup did the same on Railway; it's no longer used.) That's the entire CORS strategy: there isn't a CORS problem to solve, because there's never a cross-origin request in the first place.
 
 ### Why This, Not CORS Headers
 
@@ -63,27 +63,32 @@ The backend has zero CORS configuration in any service (confirmed by searching a
 src/
 ├── api/
 │   ├── client.ts          # axios instance, interceptors, SESSION_EXPIRED_EVENT
-│   ├── auth.ts             # register(), login()
-│   ├── profile.ts           # getProfile/createProfile/updateProfile/deleteProfile
+│   ├── auth.ts             # register(), login(), verifyEmail(), resendVerification()
+│   ├── profile.ts           # getProfile/createProfile/updateProfile/deleteProfile, uploadReport()
 │   ├── contacts.ts           # list/create/update/delete
 │   ├── emergency.ts           # getEmergencyProfile(publicProfileId) — public, no auth header ever
 │   └── types.ts                # TS interfaces matching every backend DTO field-for-field
 ├── components/
 │   ├── ui/                # shadcn primitives (button, input, dialog, alert-dialog, form, select, ...)
 │   ├── layout/              # Navbar, ProtectedRoute, PublicOnlyRoute, AppLayout, PageLoader
-│   ├── profile/               # ProfileForm, ProfileSummaryCard
+│   ├── auth/                  # ResendVerificationButton (60 s cooldown)
+│   ├── profile/               # ProfileForm, ProfileSummaryCard, AiSummaryCard (upload + summary),
+│   │                          # AiSummaryText, MedicalTimeline (vertical), SnakeTimeline, TimelineEventMeta
 │   └── contacts/                # ContactForm
 ├── context/
 │   └── AuthContext.tsx     # token state, login/logout, session-expiry listener
 ├── hooks/
 │   ├── useMedicalProfile.ts   # React Query hooks for profile
-│   └── useEmergencyContacts.ts # React Query hooks for contacts
+│   ├── useEmergencyContacts.ts # React Query hooks for contacts
+│   └── useMediaQuery.ts       # responsive layout switch (snake vs vertical timeline)
 ├── lib/
 │   ├── validation.ts       # zod schemas mirroring backend DTOs
 │   ├── errors.ts             # normalizes backend ErrorResponse → toast message
 │   ├── token-store.ts          # JWT persistence + decode + expiry check
-│   └── public-profile-cache.ts  # localStorage cache for publicProfileId (see below)
-├── pages/                  # one file per route
+│   ├── server-time.ts          # server LocalDateTime (UTC, no zone) → local display
+│   ├── timeline.ts             # event type labels/icons, date formatting by precision, "upcoming"
+│   └── public-profile-cache.ts  # localStorage fallback for publicProfileId (see below)
+├── pages/                  # one file per route (incl. CheckEmailPage, VerifyEmailPage)
 ├── App.tsx                 # route tree, lazy-loaded pages
 └── main.tsx                 # providers: QueryClient, BrowserRouter, AuthProvider, Toaster
 ```
@@ -91,6 +96,12 @@ src/
 ---
 
 ## 🔐 Auth Flow
+
+```
+Register → 200 → /check-email ("we sent a link to …", resend button)
+Email link → /verify-email?token=… → POST /api/auth/verify-email → "Email verified" → Log in
+Login before verifying → 403 → inline "Please verify your email" box with a resend button
+```
 
 ```
 Login → JWT returned (raw string) → stored in localStorage + decoded client-side
@@ -139,9 +150,9 @@ The three-generic form tells react-hook-form: manage this input shape, validate 
 
 ---
 
-## 🗄️ Two Backend Limitations, Not Frontend Bugs
+## 🗄️ Two Backend Limitations, Not Frontend Bugs — ✅ Both Since Fixed in the Backend
 
-Both were discovered by reading the actual backend source directly (not assumed) after a real end-to-end test surfaced unexpected behavior.
+Both were discovered by reading the actual backend source directly (not assumed) after a real end-to-end test surfaced unexpected behavior. **Both have since been fixed backend-side:** `EContactsDTO` now carries `id` (contact edit/delete work, with no frontend change needed — exactly as designed), and `GET /api/profile` now returns `publicProfileId` (the Emergency Card reads it from the profile; the `localStorage` cache below remains only as a fallback). The history is kept because the approach — build against the intended contract, degrade gracefully until it lands — paid off.
 
 ### 1. `GET /api/contacts` Never Returns `id`
 
@@ -271,6 +282,71 @@ Also added explicit, short timeouts (`proxy_connect_timeout 10s`, `proxy_read_ti
 
 ---
 
+## 🤖 AI Medical Summary & Timeline
+
+The backend reads uploaded PDF reports with Gemini and returns three extra fields on both `GET /api/profile` and `GET /api/emergency/{publicProfileId}`: `aiSummary`, `summaryGeneratedAt` and `timeline` (oldest first; each event has `date` + `datePrecision`, `type`, `title`, `details`, `fromPhoto`).
+
+### Uploading — `AiSummaryCard` (Profile page)
+
+- PDF only, ≤ 20 MB, checked client-side before sending (the server checks again).
+- Upload progress bar; once the bytes are sent the button shows "Reading your PDF…" until the server answers.
+- On `202 Accepted`: "Report uploaded. Your AI summary will update in a few minutes." The new summary appears on the next profile load.
+
+**Design decision — no polling.** An earlier version polled `GET /api/profile` every 5 s until `summaryGeneratedAt` changed. It was removed: React Query pauses intervals in background tabs and the app has refetch-on-focus off, so a slow scanned-PDF upload could leave the card "Analyzing…" forever; a second upload during analysis could also report the first one's result as its own. A plain "it will update in a few minutes" message is honest and can't get stuck.
+
+### ⚠️ Real Issue Hit — FormData Sent as JSON
+
+The shared axios instance sets `Content-Type: application/json` by default — and axios **serializes FormData to JSON** when that header is present, so the PDF would never arrive as a file. `uploadReport()` overrides the header with `multipart/form-data`; in the browser axios then drops it so the browser can add the multipart boundary itself.
+
+### Showing It
+
+- **Summary** — `AiSummaryText` renders plain text with `white-space: pre-line` (never as HTML), "Last updated" converted from the server's zone-less UTC timestamp (`lib/server-time.ts`), and an "AI-generated, verify with a medical professional" note.
+- **Timeline** — `lib/timeline.ts` maps each type (admission, test, diagnosis, procedure, chemotherapy, radiation, medication, discharge, follow-up) to a label and icon; dates are formatted only as precisely as the report gave them ("21 Mar 2026", "Mar 2026", "2026") and built as **local** dates, so a `2026-03-21` event never shows as the 20th west of UTC. Follow-ups still ahead get an **Upcoming** badge; events read from photographed pages get **"From photo, verify"**.
+- **Profile page** — vertical `MedicalTimeline` under the summary card.
+- **Emergency page** — patient card (with blood group) beside allergies/conditions/medications; on tablets/desktops a `SnakeTimeline` (2 / 4 events per row, alternating direction, arrows, the row-to-row turn routed around the outside so it never crosses text); on phones the vertical list (`useMediaQuery`); the AI summary in a **closed-by-default dropdown** so the critical data stays on screen.
+
+---
+
+## ✉️ Email Verification Screens
+
+| Route | What it does |
+|---|---|
+| `/check-email` | Shown after registering: "We sent a link to …", resend button, back to login. Works without registration state too (asks for the email). |
+| `/verify-email?token=…` | Opened from the email; calls `POST /api/auth/verify-email` once → "Email verified" → Log in, or "invalid/expired" → enter email → resend. |
+| `/login` | A `403` (correct password, unverified email) shows an inline "Please verify your email" box with a resend button; `401` stays a password error. |
+
+`ResendVerificationButton` is shared by all three and disables itself for 60 s after each send (matching the server's limit). Its message is deliberately generic — the backend answers the same way for every email, so the UI never claims an account exists.
+
+Both routes are public and **not** wrapped in `PublicOnlyRoute`: a verification link must work even if someone is logged in on that browser.
+
+### ⚠️ Real Issue Hit — One-Time Tokens vs StrictMode
+
+React's StrictMode runs effects twice in development. `VerifyEmailPage` sends the token on mount — the second call would hit an already-used token and show "invalid link" right after a successful verification. A `useRef` guard makes sure the request is sent exactly once.
+
+---
+
+## ▲ Hosting on Vercel
+
+Production runs on Vercel at `www.medinfo.org.in`; merging into `main` deploys. `vercel.json`:
+
+```json
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://api.medinfo.org.in/api/:path*" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
+```
+
+1. `/api/*` is proxied server-side to the backend (Caddy → Gateway on the VPS), keeping every browser request same-origin.
+2. Every other path serves `index.html` so React Router can render it. Vercel checks real files first, so JS, CSS, icons, `sw.js` and the manifest are still served normally; `/api/` is excluded so a mistyped API path can't silently return HTML.
+
+### ⚠️ Real Issue Hit — 404 on Direct Links, Hidden by the Service Worker
+
+With only the `/api/*` rewrite, opening `/emergency/<id>` directly returned Vercel's 404 — but only for **first-time visitors**. Returning users never saw it: the PWA service worker answers navigations itself with the cached `index.html` (vite-plugin-pwa's navigate fallback). Ctrl+Shift+R (which bypasses the service worker) and a friend opening a shared link both exposed it. For an app whose core flow is "a stranger scans a QR code", that's the worst possible case. The SPA fallback rewrite fixed it; deep links are now verified in a fresh incognito window after deploys.
+
+---
+
 ## 🧪 Verification
 
 `npm run build` (TypeScript + Vite) passes clean — but that only proves the code compiles, not that it works. The real verification was a Playwright-driven pass against the **actual running backend** (Gateway healthy, all four services registered with Eureka), not a mocked or offline test:
@@ -292,24 +368,21 @@ Visit /dashboard while logged out → redirected to /login
 
 Zero console errors or crashes throughout, outside the two expected error-toast messages tied to the documented backend gap. Screenshots were captured at every step during development to visually confirm rendering, not just assert on text content.
 
+**Later passes (AI, email verification, production):**
+
+```
+Register → /check-email → link from the real email → /verify-email → "Email verified" → login
+Login before verifying → 403 → inline resend box (60 s cooldown)
+Upload a typed PDF and a photographed PDF → "uploaded" message → summary + timeline after a few minutes
+Emergency page at phone, tablet and desktop widths → vertical / 2-per-row / 4-per-row timeline
+Hard refresh and direct links (/emergency/<id>, /verify-email?token=…) on Vercel in a fresh incognito window
+```
+
 ---
 
-## 🐳 Docker & Deployment
+## 🐳 Docker + nginx (Earlier Railway Deployment — No Longer Used)
 
-```dockerfile
-# Build stage: node:20-alpine → npm run build
-# Serve stage: nginx:1.27-alpine
-COPY nginx.conf /etc/nginx/templates/default.conf.template
-COPY --from=build /app/dist /usr/share/nginx/html
-ENV GATEWAY_URL=http://gateway-service:8080
-```
-
-`nginx.conf` is templated, not static — nginx's official image auto-runs `envsubst` over `/etc/nginx/templates/*.template` at container **start**, substituting only variables that actually exist in the container's environment (so `${GATEWAY_URL}` gets replaced, while nginx's own runtime variables like `$host`, `$remote_addr`, `$scheme` are left untouched, since those aren't environment variable names). That means the backend target is a `docker run` flag, not a rebuild:
-
-```bash
-docker build -t medinfo-frontend .
-docker run -p 8081:80 -e GATEWAY_URL=https://gateway-service-production-2453.up.railway.app medinfo-frontend
-```
+Before Vercel, the frontend ran on Railway as a Docker image: `node:20-alpine` builds `dist/`, `nginx:1.27-alpine` serves it, and a templated `nginx.conf` (envsubst at container start) reverse-proxies `/api/*` to `${GATEWAY_URL}` — same-origin, so still no CORS. The `Dockerfile` and `nginx.conf` remain in the repo for reference; production now uses `vercel.json` (see ▲ Hosting on Vercel).
 
 ### Local Dev — Switching Backend Target
 
@@ -317,10 +390,10 @@ docker run -p 8081:80 -e GATEWAY_URL=https://gateway-service-production-2453.up.
 
 ```bash
 # .env.local
-VITE_GATEWAY_URL=https://gateway-service-production-2453.up.railway.app
+VITE_GATEWAY_URL=http://localhost:8080
 ```
 
-Falls back to `http://localhost:8080` if the file or variable is absent. Verified live: a request through the dev proxy with intentionally wrong credentials returned a real `401 Invalid Credentials` from the Railway-hosted Gateway, confirming the proxy target was actually reaching Railway and not a local instance.
+Falls back to `http://localhost:8080` if the file or variable is absent. Restart `npm run dev` after changing it.
 
 ---
 
@@ -387,21 +460,26 @@ Precache the shell, never the data · Network-first (in this case, network-*only
 - [x] JWT auth — storage, header injection, session-expiry handling (no refresh endpoint exists, so expiry means a clean logout, not a silent failure)
 - [x] Route protection — `ProtectedRoute` / `PublicOnlyRoute`
 - [x] Medical Profile — create / view / edit / delete, with confirm dialog on delete
-- [x] Emergency Contacts — create / list; edit / delete built and wired, blocked on the backend `id` gap
+- [x] Emergency Contacts — create / list / edit / delete (unblocked once the backend added `id`)
 - [x] Emergency Card — QR code generation, print/download/copy-link
 - [x] Public Emergency page — no-auth, alert-styled, `tel:` links, handles 404/503 gracefully
 - [x] Centralized error normalization from the backend's `{status, error, message}` shape
 - [x] Loading skeletons, empty states, and confirm dialogs throughout
 - [x] Route-level code splitting (bundle size warning resolved)
-- [x] Dockerfile + nginx reverse proxy for production, no backend CORS required
-- [x] `.env.local` + `loadEnv()` for switching the dev proxy target (local ↔ Railway) without code changes
+- [x] Dockerfile + nginx reverse proxy (used for the earlier Railway deployment), no backend CORS required
+- [x] `.env.local` + `loadEnv()` for switching the dev proxy target without code changes
 - [x] Verified end-to-end against the live backend, not just a build check
 - [x] Installable PWA — manifest + service worker via `vite-plugin-pwa`, app-shell-only precaching, `/api/*` explicitly `NetworkOnly`, iOS meta tags, maskable + standard icons generated from one source SVG
+- [x] AI Medical Summary — PDF upload with progress, "updates in a few minutes" message, summary with last-updated time
+- [x] Medical timeline — vertical list (profile, phones) and snake layout (emergency page, 2 / 4 per row), Upcoming and "From photo, verify" labels
+- [x] Emergency page redesign — patient + blood group beside the critical lists, AI summary in a collapsible section
+- [x] Email verification — check-email, verify-email, 403 handling on login, resend with cooldown
+- [x] Hosted on Vercel with `/api/*` rewrite and SPA fallback (deep links work for first-time visitors)
 
 ### 🚧 Next
 
-- [ ] Backend: add `id` to `EContactsDTO` — unblocks contact edit/delete with zero frontend changes
 - [ ] Automated tests (the Playwright script used for verification was ad hoc, not committed as a test suite)
 - [ ] Typed API responses for the plain-string mutation endpoints (`POST/PUT/DELETE /api/contacts*`, `DELETE /api/profile`) currently typed as `Promise<void>`
 - [ ] Confirm the live install prompt in a real (non-headless) browser — see the PWA section's verification-limits note
-- [ ] Production CORS fallback path (rewrite rules) if the frontend is ever deployed to a static host without a server-side proxy (e.g. plain Vercel/Netlify without rewrites)
+- [ ] Report list / status (show uploaded reports and any that failed analysis) — needs a backend endpoint
+- [ ] Remove the unused Docker/nginx files, or keep them documented as an alternative host

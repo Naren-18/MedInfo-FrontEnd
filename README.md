@@ -1,88 +1,92 @@
 # 🏥 MedInfo — Frontend
 
-The client for the [MedInfo microservices backend](https://github.com/Naren-18/MedInfo-Backend-Microservices) — an emergency medical information platform. Register, build a medical profile, add emergency contacts, then get a QR code that lets anyone — no login required — see your critical medical information in an emergency.
+The client for the [MedInfo microservices backend](https://github.com/Naren-18/MedInfo-Backend-Microservices) — an emergency medical information platform. Register (with email verification), build a medical profile, add emergency contacts, upload medical reports for an **AI summary** and a **medical timeline**, then get a QR code that lets anyone — no login required — see your critical medical information in an emergency.
 
-> 📐 Deep-dive documentation: **[Architecture.md](Architecture.md)** — design decisions, the CORS-avoidance strategy, real issues hit, and end-to-end verification results.
+**Live:** https://www.medinfo.org.in
+
+> 📐 Deep-dive documentation: **[Architecture.md](Architecture.md)** — design decisions, the no-CORS strategy, the AI and email-verification screens, real issues hit, and verification results.
+
+---
+
+## ✨ Features
+
+- **Accounts with email verification** — register → "check your inbox" → one-time link → log in; resend with a 60 s cooldown
+- **Medical profile** — blood group, allergies, conditions, medications, organ donor
+- **Emergency contacts** — create, edit, delete
+- **Medical reports → AI summary** — upload PDFs (typed or phone photos, ≤ 20 MB); a combined AI Medical Summary appears a few minutes later
+- **Medical timeline** — dated events extracted from the reports; "Upcoming" follow-ups; "From photo, verify" labels on events read from photographed pages
+- **Emergency Card** — QR code, print/download/copy link
+- **Public emergency page** (no login) — patient + blood group, allergies/conditions/medications, a snake-style timeline on wide screens (vertical on phones), the AI summary in a collapsible section, tap-to-call contacts
+- **Installable PWA** — app shell cached, medical data never cached
 
 ---
 
 ## ⚙️ Tech Stack
 
-- React 18 + TypeScript + Vite
+- React 19 + TypeScript + Vite
 - Tailwind CSS + shadcn/ui (Radix primitives)
-- React Router v6
+- React Router v7
 - TanStack Query (server state, caching, invalidation)
-- react-hook-form + zod (validation mirrors the backend DTOs exactly)
+- react-hook-form + zod (validation mirrors the backend DTOs)
 - axios
 - qrcode.react
-- vite-plugin-pwa (installable "Add to Home Screen" support)
+- vite-plugin-pwa
+- Hosted on **Vercel**
 
 ---
 
 ## 🚀 Running Locally
 
-The backend needs to be running first — see [`TESTING.md`](../MedInfo-Backend-Microservices/TESTING.md) in the backend repo.
+The backend needs to be running first — see the [backend README](https://github.com/Naren-18/MedInfo-Backend-Microservices).
 
 ```bash
 npm install
 npm run dev
 ```
 
-Opens at `http://localhost:5173`.
+Opens at `http://localhost:5173`. Every `/api/*` request is proxied by Vite to `http://localhost:8080` (the Gateway).
 
-### Pointing at a different backend (local vs. Railway)
+To point the dev proxy elsewhere, copy `.env.example` to `.env.local` and set `VITE_GATEWAY_URL`; restart `npm run dev` afterwards. `.env.local` is gitignored.
 
-Copy `.env.example` to `.env.local` and set the Gateway URL:
-
-```bash
-cp .env.example .env.local
-```
-
-```bash
-# .env.local
-VITE_GATEWAY_URL=https://gateway-service-production-2453.up.railway.app
-# or, for local backend:
-# VITE_GATEWAY_URL=http://localhost:8080
-```
-
-Restart `npm run dev` after changing it — env vars are only read at startup. `.env.local` is gitignored, so this never gets committed. If the file or variable is absent, it defaults to `http://localhost:8080`.
+> Testing email verification locally? Set `FRONTEND_BASE_URL=http://localhost:5173` in the **backend's** `.env`, so the link in the email opens your dev server.
 
 ### Why there's no CORS configuration anywhere
 
-The backend has no CORS setup, and this project is built to never need one. `vite.config.ts` proxies every `/api/*` request to the Gateway **server-side**, inside Vite's Node process — the browser only ever talks to `localhost:5173`, so no CORS preflight is ever triggered, regardless of which backend `VITE_GATEWAY_URL` points at.
+The browser only ever calls its own origin (`/api/...`). In development, Vite's proxy forwards those requests **server-side**; in production, Vercel's rewrite does the same:
+
+```json
+// vercel.json
+{ "source": "/api/:path*", "destination": "https://api.medinfo.org.in/api/:path*" }
+```
+
+No cross-origin request ever happens, so the backend never needs CORS headers.
 
 ---
 
-## 📦 Production Build
+## 📦 Production
+
+Merging into `main` deploys to **Vercel** automatically. `vercel.json` has two rewrites:
+
+1. `/api/*` → `https://api.medinfo.org.in/api/*` (the backend, behind Caddy on the VPS)
+2. every other path → `/index.html`, so direct links like `/emergency/<id>` (from a QR code) or `/verify-email?token=…` (from an email) load the app instead of a 404
 
 ```bash
 npm run build   # outputs to dist/
 ```
 
-### 🐳 Docker
+> The `Dockerfile` + `nginx.conf` (nginx reverse-proxying `/api/*`) date from the earlier Railway deployment and aren't used in production.
 
-```bash
-docker build -t medinfo-frontend .
-docker run -p 8081:80 -e GATEWAY_URL=https://gateway-service-production-2453.up.railway.app medinfo-frontend
-```
+---
 
-The image serves the built app via nginx, which reverse-proxies `/api/*` to `GATEWAY_URL` the same way the Vite dev proxy does — same-origin from the browser's perspective, so the backend still never needs CORS. `GATEWAY_URL` is read at **container start** (not baked into the image), so switching backends doesn't require a rebuild. Defaults to `http://gateway-service:8080`, matching the service name Docker Compose would assign if this container joins the backend's `infrastructure/docker-compose.yml` network.
+## 🔀 Workflow
+
+`main` is the base branch. Each feature gets its own branch from `main`, is pushed, and is merged through a pull request. Remember: **merging into `main` deploys to production** — when a change depends on new backend endpoints, deploy the backend first.
 
 ---
 
 ## 📲 Install as an App
 
-MedInfo is installable — the address bar shows an install icon on desktop Chrome, and "Add to Home Screen" launches a standalone app window on mobile, not just a bookmark. This only works against a **production build** (`npm run build` + serving `dist/`, or the Docker image) — the service worker is intentionally disabled under `npm run dev`.
-
-Only the static app shell is cached for offline use — every `/api/*` request is explicitly `NetworkOnly`, so medical data is always fetched live, never served stale from a cache. Full detail, including how to verify the install prompt yourself, in [Architecture.md](Architecture.md).
-
----
-
-## ⚠️ A Known Backend Limitation (Not a Frontend Bug)
-
-`GET /api/contacts` currently returns each contact as `{name, relationship, phoneNumber}` — **no `id`** (verified directly against `EmergencyContactsService.java`). `PUT /api/contacts/{id}` and `DELETE /api/contacts/{id}` both require that id, so there is currently no way to actually edit or delete a specific contact. This frontend is written *assuming* `id` will be added to `EContactsDTO` — edit/delete fail gracefully with a toast (not a crash) until that backend change lands, with no frontend changes needed once it does.
-
-Also worth knowing: `GET /api/profile` never returns `publicProfileId` (only `POST`/`PUT` do), so the Emergency Card's QR code is cached in `localStorage` per-user the moment it's created or updated. On a new device or after clearing browser data, the Emergency Card page explains this and points back to the medical profile page. Full detail in [Architecture.md](Architecture.md).
+MedInfo is installable — the address bar shows an install icon on desktop Chrome, and "Add to Home Screen" launches a standalone app on mobile. Only the static app shell is cached; every `/api/*` request is `NetworkOnly`, so medical data is always live. The service worker is disabled under `npm run dev`.
 
 ---
 
@@ -90,20 +94,21 @@ Also worth knowing: `GET /api/profile` never returns `publicProfileId` (only `PO
 
 ```
 src/
-├── api/          # axios client + one module per backend resource, TS types matching every DTO
+├── api/          # axios client + one module per backend resource, TS types matching the DTOs
 ├── components/
 │   ├── ui/         # shadcn primitives
 │   ├── layout/       # Navbar, route guards, page shell
-│   ├── profile/        # medical profile form + summary card
-│   └── contacts/         # emergency contact form
+│   ├── auth/           # ResendVerificationButton
+│   ├── profile/          # profile form/summary, AI summary card, timelines (vertical + snake)
+│   └── contacts/           # emergency contact form
 ├── context/       # AuthContext (JWT storage, login/logout, session-expiry handling)
-├── hooks/         # React Query hooks per resource
-├── lib/           # validation schemas, error normalization, utils, publicProfileId cache
-└── pages/         # one file per route
+├── hooks/         # React Query hooks, useMediaQuery
+├── lib/           # validation, errors, server-time + timeline formatting, utils, publicProfileId cache
+└── pages/         # one file per route (incl. CheckEmailPage, VerifyEmailPage)
 ```
 
 ---
 
 ## ✅ Verified End-to-End
 
-Register → login → create medical profile → view/edit profile → add emergency contact → generate & view QR code → open the public `/emergency/:publicProfileId` link in a fresh unauthenticated browser context → confirm live data renders, including a cache-hit reload → logout → confirm protected routes redirect. Run against the real, live backend — zero console errors outside the documented contact-id gap above. Full verification log in [Architecture.md](Architecture.md).
+Register → verification email → verify → login → create profile → upload a report (typed and photographed PDFs) → AI summary and timeline appear → emergency card → open the public `/emergency/:publicProfileId` link in a fresh, logged-out browser (desktop and phone layouts) → hard refresh on deep links → logout. Run against the real backend locally and in production. Details in [Architecture.md](Architecture.md).
