@@ -9,6 +9,7 @@ export const registerSchema = z.object({
   fullName: z.string().trim().min(1, "Full name is required"),
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  acceptedTerms: z.boolean().refine((v) => v, "Please accept the Terms of Service and Privacy Policy to continue"),
 })
 export type RegisterFormValues = z.infer<typeof registerSchema>
 

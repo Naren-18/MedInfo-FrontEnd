@@ -1,4 +1,5 @@
 import * as React from "react"
+import { Link } from "react-router-dom"
 import { FileUp, Loader2, Sparkles } from "lucide-react"
 
 import { uploadReport } from "@/api/profile"
@@ -43,6 +44,8 @@ export function AiSummaryCard() {
   const [phase, setPhase] = React.useState<Phase>("idle")
   const [progress, setProgress] = React.useState(0)
   const [uploadError, setUploadError] = React.useState<string | null>(null)
+  // Informed consent before each session's uploads: the report leaves our servers for Google.
+  const [acknowledged, setAcknowledged] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
   async function handleFile(file: File) {
@@ -108,7 +111,29 @@ export function AiSummaryCard() {
             className="hidden"
             onChange={handleInputChange}
           />
-          <Button variant="outline" size="sm" disabled={isUploading} onClick={() => inputRef.current?.click()}>
+          <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3 text-xs leading-snug text-muted-foreground">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]"
+              checked={acknowledged}
+              onChange={(e) => setAcknowledged(e.target.checked)}
+            />
+            <span>
+              I understand this report will be sent to <strong className="text-foreground">Google's Gemini AI</strong> to
+              create my summary and timeline. MedInfo uses Gemini's free tier, so Google may use it to improve its
+              products. This is my own report, or I have permission to upload it.{" "}
+              <Link to="/privacy#ai" target="_blank" className="font-medium text-primary hover:underline">
+                Learn more
+              </Link>
+            </span>
+          </label>
+
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isUploading || !acknowledged}
+            onClick={() => inputRef.current?.click()}
+          >
             {isReading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
             {isReading
               ? "Reading your PDF…"

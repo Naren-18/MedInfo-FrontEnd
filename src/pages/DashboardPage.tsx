@@ -8,6 +8,7 @@ import { useContactsQuery } from "@/hooks/useEmergencyContacts"
 import { getCachedPublicProfileId } from "@/lib/public-profile-cache"
 
 import { PageHeader } from "@/components/layout/PageHeader"
+import { DeleteAccountCard } from "@/components/account/DeleteAccountCard"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -165,6 +166,10 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      <div className="mt-10">
+        <DeleteAccountCard />
+      </div>
     </div>
   )
 }

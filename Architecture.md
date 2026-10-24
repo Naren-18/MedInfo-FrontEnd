@@ -325,6 +325,21 @@ React's StrictMode runs effects twice in development. `VerifyEmailPage` sends th
 
 ---
 
+## 🔏 Privacy Policy, Consent & Account Deletion
+
+| Where | What |
+|---|---|
+| `/privacy`, `/terms` | Plain-English Privacy Policy and Terms of Service (`pages/PrivacyPolicyPage.tsx`, `TermsPage.tsx`, layout in `components/legal/LegalPage.tsx`). Shared facts — operator, contact email, version, retention days — live in `lib/legal.ts`. Linked from the footer, the registration form, the upload notice and the public emergency page. |
+| Register | Required checkbox (18+, Terms, Privacy, health-data processing, public emergency page). Sent as `acceptedTerms`; the server rejects `false` and records the date and version. |
+| Upload card | A required "sent to Google's Gemini AI (free tier)" acknowledgement before the upload button enables. |
+| Profile, Emergency Card, Contacts | `PublicVisibilityNotice`: exactly what anyone with the QR/link can see; contacts must agree to appear. |
+| Dashboard | `DeleteAccountCard`: password-confirmed deletion of the account and all its data; on success clears the session and the cached QR id. A wrong password is a 400, so the 401 session-expiry handler never fires. |
+| Public emergency page | Adds `<meta name="robots" content="noindex, nofollow">` while mounted, so search engines don't index personal health pages. |
+
+When either document changes in substance, bump `LEGAL_VERSION` / `LEGAL_LAST_UPDATED` here and `AuthService.TERMS_VERSION` in auth-service together.
+
+---
+
 ## ▲ Hosting on Vercel
 
 Production runs on Vercel at `www.medinfo.org.in`; merging into `main` deploys. `vercel.json`:
@@ -475,6 +490,7 @@ Precache the shell, never the data · Network-first (in this case, network-*only
 - [x] Emergency page redesign — patient + blood group beside the critical lists, AI summary in a collapsible section
 - [x] Email verification — check-email, verify-email, 403 handling on login, resend with cooldown
 - [x] Hosted on Vercel with `/api/*` rewrite and SPA fallback (deep links work for first-time visitors)
+- [x] Privacy Policy & Terms pages, recorded consent, Gemini upload notice, public-visibility notices, self-service account deletion, noindex on emergency pages
 
 ### 🚧 Next
 

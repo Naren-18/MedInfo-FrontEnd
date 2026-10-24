@@ -1,6 +1,6 @@
-import type { ComponentType } from "react"
+import { useEffect, type ComponentType } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useParams } from "react-router-dom"
+import { Link, useParams } from "react-router-dom"
 import {
   AlertTriangle,
   ChevronDown,
@@ -32,6 +32,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function PublicEmergencyPage() {
   const { publicProfileId } = useParams<{ publicProfileId: string }>()
+  useNoIndex()
 
   const { data: profile, isLoading, isError, error } = useQuery({
     queryKey: ["emergency", publicProfileId],
@@ -191,6 +192,15 @@ export default function PublicEmergencyPage() {
               This information was provided by the patient via MedInfo and may not reflect their current
               condition. Always follow your own clinical judgment.
             </p>
+            <p className="text-center text-xs text-muted-foreground">
+              <Link to="/privacy" className="hover:underline">
+                Privacy Policy
+              </Link>
+              {" · "}
+              <Link to="/terms" className="hover:underline">
+                Terms of Service
+              </Link>
+            </p>
           </div>
         )}
       </main>
@@ -213,6 +223,17 @@ function ResponsiveTimeline({ events }: { events: TimelineEvent[] }) {
       <TimelineDisclaimer />
     </div>
   )
+}
+
+/** Emergency pages hold personal health data: ask search engines never to index them. */
+function useNoIndex() {
+  useEffect(() => {
+    const meta = document.createElement("meta")
+    meta.name = "robots"
+    meta.content = "noindex, nofollow"
+    document.head.appendChild(meta)
+    return () => meta.remove()
+  }, [])
 }
 
 function InfoBlock({

@@ -28,7 +28,7 @@ export default function RegisterPage() {
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: "", email: "", password: "" },
+    defaultValues: { fullName: "", email: "", password: "", acceptedTerms: false },
   })
 
   async function onSubmit(values: RegisterFormValues) {
@@ -101,6 +101,40 @@ export default function RegisterPage() {
                         {...field}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="acceptedTerms"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-start gap-3 rounded-lg border border-border p-3">
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]"
+                          checked={field.value}
+                          onChange={(e) => field.onChange(e.target.checked)}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormLabel className="text-sm font-normal leading-snug">
+                        I'm 18 or older and agree to the{" "}
+                        <Link to="/terms" target="_blank" className="font-medium text-primary hover:underline">
+                          Terms of Service
+                        </Link>{" "}
+                        and{" "}
+                        <Link to="/privacy" target="_blank" className="font-medium text-primary hover:underline">
+                          Privacy Policy
+                        </Link>
+                        , including MedInfo processing my health information. I understand my emergency page is visible
+                        to anyone with my QR code or link.
+                      </FormLabel>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

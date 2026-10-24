@@ -18,6 +18,7 @@ The client for the [MedInfo microservices backend](https://github.com/Naren-18/M
 - **Emergency Card** — QR code, print/download/copy link
 - **Public emergency page** (no login) — patient + blood group, allergies/conditions/medications, a snake-style timeline on wide screens (vertical on phones), the AI summary in a collapsible section, tap-to-call contacts
 - **Installable PWA** — app shell cached, medical data never cached
+- **Privacy & control** — Privacy Policy and Terms pages, recorded consent at sign-up, a Gemini notice before each upload session, "who can see this" notices, and self-service account deletion
 
 ---
 

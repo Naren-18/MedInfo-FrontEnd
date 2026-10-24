@@ -15,6 +15,7 @@ import type { EmergencyContact, EmergencyContactInput } from "@/api/types"
 import { ContactForm } from "@/components/contacts/ContactForm"
 import { PageLoader } from "@/components/layout/PageLoader"
 import { PageHeader } from "@/components/layout/PageHeader"
+import { PublicVisibilityNotice } from "@/components/legal/PublicVisibilityNotice"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -122,6 +123,8 @@ export default function ContactsPage() {
           ) : undefined
         }
       />
+
+      <PublicVisibilityNotice about="contacts" />
 
       {!hasContacts && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>

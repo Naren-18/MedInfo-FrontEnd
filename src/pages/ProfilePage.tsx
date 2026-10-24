@@ -19,6 +19,7 @@ import { AiSummaryCard } from "@/components/profile/AiSummaryCard"
 import { MedicalTimeline } from "@/components/profile/MedicalTimeline"
 import { PageLoader } from "@/components/layout/PageLoader"
 import { PageHeader } from "@/components/layout/PageHeader"
+import { PublicVisibilityNotice } from "@/components/legal/PublicVisibilityNotice"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -101,6 +102,8 @@ export default function ProfilePage() {
         title="Medical Profile"
         description="What first responders see when they scan your emergency QR code."
       />
+
+      <PublicVisibilityNotice />
 
       <AnimatePresence mode="wait">
         {!hasProfile && !isEditing && (
