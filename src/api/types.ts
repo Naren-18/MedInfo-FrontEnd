@@ -4,6 +4,8 @@ export interface RegisterRequest {
   fullName: string
   email: string
   password: string
+  /** The registration consent checkbox; the server rejects false. */
+  acceptedTerms: boolean
 }
 
 export interface LoginRequest {

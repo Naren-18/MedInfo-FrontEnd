@@ -12,6 +12,7 @@ import { getErrorMessage } from "@/lib/errors"
 
 import { PageLoader } from "@/components/layout/PageLoader"
 import { PageHeader } from "@/components/layout/PageHeader"
+import { PublicVisibilityNotice } from "@/components/legal/PublicVisibilityNotice"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -137,6 +138,8 @@ export default function EmergencyCardPage() {
         title="Your Emergency Card"
         description="Print this, save it as a photo, or add it to your phone's lock screen. Anyone who scans it sees your emergency medical information instantly — no login required."
       />
+
+      <PublicVisibilityNotice />
 
       <motion.div
         initial={{ opacity: 0, scale: 0.97 }}

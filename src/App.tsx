@@ -16,6 +16,8 @@ const ContactsPage = lazy(() => import("@/pages/ContactsPage"))
 const EmergencyCardPage = lazy(() => import("@/pages/EmergencyCardPage"))
 const PublicEmergencyPage = lazy(() => import("@/pages/PublicEmergencyPage"))
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"))
+const PrivacyPolicyPage = lazy(() => import("@/pages/PrivacyPolicyPage"))
+const TermsPage = lazy(() => import("@/pages/TermsPage"))
 
 function App() {
   return (
@@ -33,6 +35,8 @@ function App() {
               in on this browser, since the link can be opened anywhere. */}
           <Route path="/check-email" element={<CheckEmailPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
 
           <Route element={<PublicOnlyRoute />}>
             <Route path="/register" element={<RegisterPage />} />
